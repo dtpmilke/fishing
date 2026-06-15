@@ -1,0 +1,125 @@
+:host {
+  display: block;
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Верхняя панель: поиск + действия */
+.top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  pointer-events: none;
+}
+.top > * { pointer-events: auto; }
+.grow { flex: 1; min-width: 0; }
+.actions { display: flex; gap: 8px; }
+
+/* Кнопки инструментов карты (рыбные места, осадки) */
+.map-tools {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 550;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---- Bottom sheet ---- */
+.sheet {
+  --peek: 172px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 560;
+  margin: 0 auto;
+  max-width: 520px;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
+  border-bottom: none;
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.18);
+  padding: 0 14px max(16px, env(safe-area-inset-bottom));
+  transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+  touch-action: none;
+}
+.sheet.dragging { transition: none; }
+
+.handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 30px;
+  border: none;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+}
+.handle:active { cursor: grabbing; }
+.grip {
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--on-glass-dim);
+  opacity: 0.5;
+}
+
+.sheet-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: calc(100dvh - 84px); /* помещаем всё содержимое, без обрезки плиток снизу */
+  overflow-y: auto;
+}
+
+/* «плоские» карточки внутри sheet вынесены в глобальный styles.css
+   (scoped-стили app.css не достают до дочерних компонентов из-за view-encapsulation) */
+
+.disclaimer {
+  font-size: 11px;
+  color: var(--on-glass-dim);
+  text-align: center;
+  margin: 6px 0 0;
+}
+
+/* ---- Десктоп: боковая панель, без поведения шторки ---- */
+@media (min-width: 900px) {
+  .top { padding: 20px; }
+  .map-tools { right: 20px; }
+  .sheet {
+    left: 20px;
+    right: auto;
+    bottom: 20px;
+    top: 88px;
+    width: 380px;
+    max-width: 380px;
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    transform: none !important;
+    transition: none;
+    overflow: visible;
+  }
+  .sheet .handle { display: none; }
+  .sheet-scroll { max-height: calc(100dvh - 120px); overflow-y: auto; padding-right: 4px; }
+  /* стеклянность карточек на десктопе восстанавливается в глобальном styles.css */
+}
