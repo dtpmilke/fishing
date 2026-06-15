@@ -86,7 +86,6 @@ export class MapComponent implements AfterViewInit {
     this.map = L.map(this.mapEl().nativeElement, {
       preferCanvas: !isIOS, // на iOS лучше DOM рендеринг
       zoomControl: false, // прячем дефолтные контролы
-      tap: false, // отключаем deprecated tap handler для iOS
     }).setView([p.lat, p.lon], 11);
 
     // OSM standard — подписи на местном языке (в России — по-русски).
