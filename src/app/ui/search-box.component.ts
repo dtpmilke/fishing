@@ -7,23 +7,19 @@ import { AppStore } from '../state/app.store';
   selector: 'app-search-box',
   standalone: true,
   template: `
-    <div class="search-wrap">
-      <div class="search glass">
-        <i class="ti ti-search" aria-hidden="true"></i>
-        <input
-          [value]="query()"
-          (input)="onInput($event)"
-          (focus)="onInput($event)"
-          type="text"
-          placeholder="Поиск водоёма или города"
-          aria-label="Поиск места"
-        />
-      </div>
-      <div class="search-actions">
-        <button class="icon-btn" (click)="store.useGPS()" title="Моё местоположение" aria-label="Моё местоположение">
-          <i class="ti ti-current-location" aria-hidden="true"></i>
-        </button>
-      </div>
+    <div class="search glass">
+      <i class="ti ti-search" aria-hidden="true"></i>
+      <input
+        [value]="query()"
+        (input)="onInput($event)"
+        (focus)="onInput($event)"
+        type="text"
+        placeholder="Поиск водоёма или города"
+        aria-label="Поиск места"
+      />
+      <button class="icon-btn gps" (click)="store.useGPS()" title="Моё местоположение" aria-label="Моё местоположение">
+        <i class="ti ti-current-location" aria-hidden="true"></i>
+      </button>
     </div>
 
     @if (results().length) {
