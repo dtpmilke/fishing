@@ -1,6 +1,14 @@
 /* Service worker: офлайн-кэш оболочки + приём пушей */
-const CACHE = 'fh-v1';
-const SHELL = ['./', './index.html', './manifest.webmanifest'];
+const CACHE = 'fh-v2';
+const SHELL = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './favicon.svg',
+  './favicon.ico',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
+];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(

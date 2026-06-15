@@ -26,7 +26,18 @@ import { FishingSpot } from '../core/types';
   `,
   styles: [
     `
-      .map { position: absolute; inset: 0; z-index: 0; }
+      .map {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        height: 100%;
+        height: 100dvh;
+        width: 100%;
+      }
+      /* iOS fix: force hardware acceleration */
+      @supports (-webkit-touch-callout: none) {
+        .map { -webkit-transform: translateZ(0); transform: translateZ(0); }
+      }
       .map-loader {
         position: absolute; z-index: 400; left: 50%; top: 50%;
         transform: translate(-50%, -50%);
@@ -70,9 +81,12 @@ export class MapComponent implements AfterViewInit {
 
   ngAfterViewInit(): void {
     const p = this.store.point();
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
     this.map = L.map(this.mapEl().nativeElement, {
-      preferCanvas: true,
+      preferCanvas: !isIOS, // на iOS лучше DOM рендеринг
       zoomControl: false, // прячем дефолтные контролы
+      tap: false, // отключаем deprecated tap handler для iOS
     }).setView([p.lat, p.lon], 11);
 
     // OSM standard — подписи на местном языке (в России — по-русски).
@@ -80,9 +94,16 @@ export class MapComponent implements AfterViewInit {
     const base = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap',
+      crossOrigin: true,
+      updateWhenIdle: false, // плавнее на мобильных
+      updateWhenZooming: false,
     });
     base.on('loading', () => this.tilesLoading.set(true));
     base.on('load', () => this.tilesLoading.set(false));
+    base.on('tileerror', () => {
+      // при ошибке тайла всё равно скрываем лоадер через таймаут
+      setTimeout(() => this.tilesLoading.set(false), 2000);
+    });
     base.addTo(this.map);
 
     // убираем дефолтный префикс Leaflet (с флагом), оставляем чистый кредит
