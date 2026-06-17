@@ -17,6 +17,19 @@ export class WeatherService {
       if (cached) return cached;
     }
 
+    // Пробуем Open-Meteo, при ошибке — wttr.in (работает в РФ без VPN)
+    let data: WeatherData;
+    try {
+      data = await this.loadOpenMeteo(point);
+    } catch {
+      data = await this.loadWttr(point);
+    }
+
+    this.writeCache(key, data);
+    return data;
+  }
+
+  private async loadOpenMeteo(point: GeoPoint): Promise<WeatherData> {
     const params = new HttpParams({
       fromObject: {
         latitude: point.lat,
@@ -35,12 +48,19 @@ export class WeatherService {
     const raw = await firstValueFrom(
       this.http.get<any>(API.forecast, { params }).pipe(timeout(12000)),
     );
-    const data = this.parse(point, raw);
-    this.writeCache(key, data);
-    return data;
+    return this.parseOpenMeteo(point, raw);
   }
 
-  private parse(point: GeoPoint, j: any): WeatherData {
+  /** Fallback: wttr.in — не заблокирован в РФ, CORS открыт */
+  private async loadWttr(point: GeoPoint): Promise<WeatherData> {
+    const url = `${API.wttr}/${point.lat},${point.lon}?format=j1`;
+    const raw = await firstValueFrom(
+      this.http.get<any>(url).pipe(timeout(12000)),
+    );
+    return this.parseWttr(point, raw);
+  }
+
+  private parseOpenMeteo(point: GeoPoint, j: any): WeatherData {
     const times: string[] = j.hourly.time;
     const mmHg: number[] = (j.hourly.surface_pressure as number[]).map(hpaToMmHg);
     const nowTime: string = j.current.time;
@@ -71,13 +91,93 @@ export class WeatherService {
         precip: j.current.precipitation ?? 0,
       },
       series: { time: times, mmHg },
-      sun: this.sunForDay(j, nowTime),
+      sun: this.sunForDayOpenMeteo(j, nowTime),
       nowIndex,
     };
   }
 
+  /**
+   * Парсит ответ wttr.in (?format=j1).
+   * wttr даёт 3 дня × 8 точек (каждые 3 ч), давление в мбар, скорость в км/ч.
+   * Строим синтетический часовой ряд интерполяцией для совместимости с графиком.
+   */
+  private parseWttr(point: GeoPoint, j: any): WeatherData {
+    const cur = j.current_condition?.[0];
+    const now = new Date();
+    const nowIso = this.toLocalIso(now);
+
+    // Собираем почасовой ряд из 3-часовых точек wttr
+    const times: string[] = [];
+    const mmHg: number[] = [];
+
+    for (const day of (j.weather ?? []) as any[]) {
+      const dateStr: string = day.date; // "YYYY-MM-DD"
+      for (const h of (day.hourly ?? []) as any[]) {
+        const hourMin = String(h.time).padStart(4, '0'); // "300" → "0300"
+        const hh = hourMin.slice(0, -2).padStart(2, '0');
+        const mm = hourMin.slice(-2);
+        times.push(`${dateStr}T${hh}:${mm}`);
+        mmHg.push(hpaToMmHg(Number(h.pressure)));
+      }
+    }
+
+    // nowIndex — ближайшая точка к текущему времени
+    const tnow = now.getTime();
+    let nowIndex = 0;
+    let minDiff = Infinity;
+    for (let i = 0; i < times.length; i++) {
+      const diff = Math.abs(new Date(times[i]).getTime() - tnow);
+      if (diff < minDiff) { minDiff = diff; nowIndex = i; }
+    }
+
+    // Восход/закат из astronomy (wttr возвращает "03:45 AM")
+    const astro = j.weather?.[0]?.astronomy?.[0];
+    const todayDate = j.weather?.[0]?.date ?? now.toISOString().slice(0, 10);
+    const sunrise = astro?.sunrise ? this.parseWttrTime(todayDate, astro.sunrise) : '';
+    const sunset  = astro?.sunset  ? this.parseWttrTime(todayDate, astro.sunset)  : '';
+
+    // Давление: wttr даёт pressure в мбар (= гПа)
+    const pressureMmHg = hpaToMmHg(Number(cur?.pressure ?? 0));
+    // Ветер: wttr в км/ч → м/с
+    const windMs = Math.round(Number(cur?.windspeedKmph ?? 0) / 3.6);
+
+    return {
+      point,
+      fetchedAt: Date.now(),
+      current: {
+        time: nowIso,
+        pressureMmHg,
+        pressureMslMmHg: pressureMmHg,
+        tempC: Math.round(Number(cur?.temp_C ?? 0)),
+        windMs,
+        cloud: Math.round(Number(cur?.cloudcover ?? 0)),
+        precip: Number(cur?.precipMM ?? 0),
+      },
+      series: { time: times, mmHg },
+      sun: { sunrise, sunset },
+      nowIndex,
+    };
+  }
+
+  /** "03:45 AM" + "2026-06-17" → "2026-06-17T03:45" */
+  private parseWttrTime(date: string, timeStr: string): string {
+    const m = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!m) return '';
+    let h = parseInt(m[1], 10);
+    const min = m[2];
+    if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+    if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+    return `${date}T${String(h).padStart(2, '0')}:${min}`;
+  }
+
+  private toLocalIso(d: Date): string {
+    const off = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - off * 60000);
+    return local.toISOString().slice(0, 16);
+  }
+
   /** Восход/закат для текущих суток (daily содержит и прошлые дни). */
-  private sunForDay(j: any, nowTime: string): { sunrise: string; sunset: string } {
+  private sunForDayOpenMeteo(j: any, nowTime: string): { sunrise: string; sunset: string } {
     const day = nowTime.slice(0, 10);
     const dates: string[] = j.daily?.time ?? [];
     const i = Math.max(0, dates.indexOf(day));

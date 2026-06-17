@@ -14,6 +14,8 @@ export const API = {
   reverse: 'https://api-bdc.net/data/reverse-geocode-client',
   ipGeojs: 'https://get.geojs.io/v1/ip/geo.json',
   ipWhois: 'https://ipwho.is/',
+  // Fallback для РФ: не заблокирован РКН, CORS открыт
+  wttr: 'https://wttr.in',
 };
 
 // Пороги вердикта по баллам (0..100)
