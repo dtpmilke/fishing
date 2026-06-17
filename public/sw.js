@@ -1,8 +1,6 @@
 /* Service worker: офлайн-кэш оболочки + приём пушей */
-const CACHE = 'fh-v2';
+const CACHE = 'fh-v3';
 const SHELL = [
-  './',
-  './index.html',
   './manifest.webmanifest',
   './favicon.svg',
   './favicon.ico',
@@ -30,6 +28,25 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   // кэшируем только свои файлы; тайлы и API всегда из сети
   if (new URL(req.url).origin !== location.origin) return;
+
+  const url = new URL(req.url);
+  const isHtml = url.pathname.endsWith('/') || url.pathname.endsWith('.html');
+
+  if (isHtml) {
+    // network-first для index.html — при деплое всегда свежий HTML с актуальными хэшами
+    e.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+          return res;
+        })
+        .catch(() => caches.match(req)),
+    );
+    return;
+  }
+
+  // cache-first для хэшированных ассетов (JS, CSS, иконки)
   e.respondWith(
     caches.match(req).then(
       (cached) =>
