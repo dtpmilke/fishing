@@ -37,7 +37,7 @@
 
 /* ---- Bottom sheet ---- */
 .sheet {
-  --peek: 490px;
+  --peek: 480px; /* начальное значение до первого рендера, JS перезапишет */
   /* отступ сверху = высота топ-панели (~120px) + safe-area-inset-top */
   --top-gap: max(120px, calc(env(safe-area-inset-top) + 106px));
   position: absolute;

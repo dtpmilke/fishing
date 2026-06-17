@@ -1,8 +1,12 @@
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   inject,
+  NgZone,
+  OnDestroy,
   OnInit,
   signal,
 } from '@angular/core';
@@ -36,15 +40,18 @@ import { AppStore } from './state/app.store';
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class App implements OnInit {
+export class App implements OnInit, AfterViewInit, OnDestroy {
   readonly store = inject(AppStore);
   private theme = inject(ThemeService); // инициализирует тему в конструкторе сервиса
+  private el = inject(ElementRef<HTMLElement>);
+  private zone = inject(NgZone);
 
   // ---- bottom sheet (мобайл) ----
   readonly sheetOpen = signal(true);
   readonly dragOffset = signal(0);
   readonly dragging = signal(false);
   private startY = 0;
+  private peekObserver?: ResizeObserver;
 
   readonly sheetStyle = computed(() => {
     const d = this.dragOffset();
@@ -55,6 +62,40 @@ export class App implements OnInit {
 
   ngOnInit(): void {
     void this.store.init();
+  }
+
+  ngAfterViewInit(): void {
+    this.zone.runOutsideAngular(() => {
+      // Обновляем --peek когда контент изменяется (загрузка данных меняет высоту)
+      this.peekObserver = new ResizeObserver(() => this.updatePeek());
+      const scroll = this.el.nativeElement.querySelector('.sheet-scroll');
+      if (scroll) this.peekObserver.observe(scroll);
+      this.updatePeek();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.peekObserver?.disconnect();
+  }
+
+  /**
+   * Вычисляет --peek как расстояние от верха шторки до нижнего края .foot + 24px запас.
+   * Работает независимо от размера экрана и длины текста.
+   */
+  private updatePeek(): void {
+    const sheet = this.el.nativeElement.querySelector('.sheet') as HTMLElement | null;
+    const foot = this.el.nativeElement.querySelector('.foot') as HTMLElement | null;
+    if (!sheet || !foot) return;
+
+    const sheetRect = sheet.getBoundingClientRect();
+    const footRect = foot.getBoundingClientRect();
+
+    // Расстояние от низа .foot до низа шторки (в системе координат шторки)
+    const footOffsetFromSheetBottom = sheetRect.bottom - footRect.bottom;
+    // peek = высота шторки минус (расстояние от foot.bottom до sheet.bottom) + запас для fade
+    const peek = sheetRect.height - footOffsetFromSheetBottom + 24;
+
+    sheet.style.setProperty('--peek', `${Math.round(peek)}px`);
   }
 
   onDown(e: PointerEvent): void {
