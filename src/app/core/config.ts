@@ -17,4 +17,51 @@ export const API = {
 };
 
 // Пороги вердикта по баллам (0..100)
-export const SCORE_THRESHOLDS = { good: 70, mid: 45 };
+export const LEVEL_THRESHOLDS = { good: 68, mid: 48 };
+
+// Способ ловли. Меняет веса факторов и кривые по ветру/небу:
+// поплавок боится ветра, фидеру он не мешает, спиннингу рябь и облачность в плюс.
+export type FishingMethod = 'float' | 'feeder' | 'spinning';
+
+export interface MethodWeights {
+  pressure: number;
+  time: number;
+  wind: number;
+  temp: number;
+  moon: number;
+  sky: number;
+}
+
+export interface MethodProfile {
+  id: FishingMethod;
+  label: string; // полное название
+  short: string; // для кнопки
+  icon: string;  // иконка Tabler
+  weights: MethodWeights; // в сумме 1.0
+}
+
+export const METHODS: MethodProfile[] = [
+  {
+    id: 'float',
+    label: 'Поплавочная удочка',
+    short: 'Поплавок',
+    icon: 'ti-fish-hook',
+    weights: { pressure: 0.32, time: 0.25, wind: 0.15, temp: 0.08, moon: 0.08, sky: 0.12 },
+  },
+  {
+    id: 'feeder',
+    label: 'Фидер',
+    short: 'Фидер',
+    icon: 'ti-basket',
+    weights: { pressure: 0.38, time: 0.14, wind: 0.1, temp: 0.12, moon: 0.06, sky: 0.2 },
+  },
+  {
+    id: 'spinning',
+    label: 'Спиннинг',
+    short: 'Спиннинг',
+    icon: 'ti-bolt',
+    weights: { pressure: 0.4, time: 0.17, wind: 0.15, temp: 0.06, moon: 0.06, sky: 0.16 },
+  },
+];
+
+export const DEFAULT_METHOD: FishingMethod = 'float';

@@ -1,54 +1,37 @@
-import { SCORE_THRESHOLDS } from './config';
-import { BiteLevel, PressureTrends, Verdict } from './types';
+import { PressureTrends } from './types';
 
 /**
- * Балльная оценка клёва (0..100) по давлению.
- * Ключевое — стабильность и направление тренда, а не абсолютное значение.
+ * Под-оценка клёва по давлению (0..100) — база мультифакторной модели.
+ * Ключевое — направление и стабильность тренда, а не абсолютное значение.
+ * Калибровка: ровный день ≈ 77, плавное падение перед фронтом → ~100,
+ * резкий скачок/рост → < 45.
  */
-export function biteScore(t: PressureTrends): number {
-  let s = 50;
+export function pressureScore(t: PressureTrends): number {
+  let s = 55;
 
   // 1. Тренд за сутки
-  if (Math.abs(t.delta24) <= 1) s += 25;           // стабильно
-  else if (t.delta24 < 0 && t.delta24 >= -3) s += 30; // плавное падение — жор
-  else if (t.delta24 > 0 && t.delta24 <= 3) s += 10;  // плавный рост
-  else s -= 20;                                     // резкий скачок
+  if (t.delta24 <= -0.7 && t.delta24 >= -3) s += 30; // плавное падение — жор
+  else if (Math.abs(t.delta24) <= 0.7) s += 8;       // стабильно — ровно, но не «жор»
+  else if (t.delta24 > 0.7 && t.delta24 <= 3) s -= 8; // плавный рост
+  else s -= 30;                                       // резкий скачок (|Δ|>3)
 
-  // 2. Стабильность (нет рывков)
-  if (t.maxStep <= 0.7) s += 15;
-  else if (t.maxStep <= 1.5) s += 5;
-  else s -= 15;
+  // 2. Стабильность (нет почасовых рывков)
+  if (t.maxStep <= 0.6) s += 14;
+  else if (t.maxStep <= 1.2) s += 4;
+  else if (t.maxStep <= 2) s -= 8;
+  else s -= 20;
 
-  // 3. Прогнозный тренд
-  if (t.deltaFwd < 0 && t.deltaFwd >= -2) s += 10;  // начинает падать — хорошо
-  else if (Math.abs(t.deltaFwd) > 3) s -= 10;       // ожидается рывок
+  // 3. Прогнозный тренд на 12 ч
+  if (t.deltaFwd <= -0.3 && t.deltaFwd >= -2.5) s += 8; // продолжает плавно падать
+  else if (t.deltaFwd > 3 || t.deltaFwd < -4) s -= 10;  // ожидается рывок
 
   return Math.max(0, Math.min(100, s));
 }
 
-export function interpret(t: PressureTrends): Verdict {
-  const score = biteScore(t);
-  const level: BiteLevel =
-    score >= SCORE_THRESHOLDS.good ? 'good'
-    : score >= SCORE_THRESHOLDS.mid ? 'mid'
-    : 'bad';
-
-  const label =
-    level === 'good' ? 'Отличный клёв'
-    : level === 'mid' ? 'Средний клёв'
-    : 'Слабый клёв';
-
-  return { score, level, label, hint: buildHint(t) };
-}
-
-function buildHint(t: PressureTrends): string {
-  if (t.maxStep > 1.5 || Math.abs(t.delta24) > 3)
-    return 'Давление скачет — рыба пассивна, поклёвки редкие.';
-  if (t.delta24 < 0 && t.delta24 >= -3)
-    return 'Давление плавно падает — рыба активна, хорошее время для рыбалки.';
-  if (Math.abs(t.delta24) <= 1)
-    return 'Давление стабильное — ровный, предсказуемый клёв.';
-  if (t.delta24 > 0)
-    return 'Давление растёт — клёв возможен, но осторожный.';
-  return 'Условия средние, стоит попробовать.';
+/** Короткое описание поведения давления для разбора по факторам. */
+export function pressureDetail(t: PressureTrends): string {
+  if (t.maxStep > 2 || Math.abs(t.delta24) > 3) return 'скачет';
+  if (t.delta24 <= -0.7) return 'плавно падает';
+  if (t.delta24 >= 0.7) return 'растёт';
+  return 'стабильно';
 }

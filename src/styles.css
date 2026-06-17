@@ -202,6 +202,30 @@ button { font-family: inherit; cursor: pointer; }
 .bite-score { font-size: 13px; color: var(--on-glass-dim); }
 
 .hint { font-size: 14px; line-height: 1.5; margin: 14px 0 0; }
+
+/* ===== Выбор снасти ===== */
+.methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 16px; }
+.method-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 4px; border: 1px solid var(--glass-stroke, rgba(127, 127, 127, 0.25));
+  border-radius: 12px; background: transparent; cursor: pointer;
+  font-size: 11px; color: var(--on-glass-dim); transition: all 0.2s ease;
+}
+.method-btn i { font-size: 18px; }
+.method-btn.on { color: var(--good); border-color: var(--good); background: rgba(47, 191, 113, 0.12); }
+
+/* ===== Разбор клёва по факторам ===== */
+.factors { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.factor { display: grid; grid-template-columns: 18px 104px 1fr 56px; align-items: center; gap: 8px; font-size: 13px; }
+.factor > i { font-size: 16px; color: var(--on-glass-dim); }
+.f-label { color: var(--on-glass-dim); }
+.f-detail { color: var(--on-glass); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f-bar { height: 6px; border-radius: 99px; background: rgba(127, 127, 127, 0.22); overflow: hidden; }
+.f-fill { display: block; height: 100%; border-radius: 99px; background: var(--mid); transition: width 0.5s ease; }
+.factor[data-level='good'] .f-fill { background: var(--good); }
+.factor[data-level='mid'] .f-fill { background: var(--mid); }
+.factor[data-level='bad'] .f-fill { background: var(--bad); }
+
 .foot { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; font-size: 12px; color: var(--on-glass-dim); }
 
 /* ============ График ============ */
@@ -212,6 +236,17 @@ button { font-family: inherit; cursor: pointer; }
 .spark-now { stroke: var(--on-glass-dim); stroke-width: 1; stroke-dasharray: 3 3; }
 .spark-dot { fill: var(--good); }
 .axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--on-glass-dim); margin-top: 2px; }
+
+/* ============ Прогноз давления на 2 дня ============ */
+.fc-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.fc-title { font-size: 13px; font-weight: 600; color: var(--on-glass); }
+.fc-range { font-size: 11px; color: var(--on-glass-dim); }
+.fc-plot { position: relative; }
+.fc-svg { width: 100%; height: 96px; display: block; }
+.fc-line { fill: none; stroke: var(--on-glass); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
+.fc-sep { stroke: var(--on-glass-dim); stroke-width: 1; stroke-dasharray: 2 3; opacity: 0.45; }
+.fc-dot { fill: var(--good); }
+.fc-day { position: absolute; bottom: 0; transform: translateX(-50%); font-size: 10.5px; color: var(--on-glass-dim); white-space: nowrap; pointer-events: none; }
 
 /* ============ Плитки ============ */
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }

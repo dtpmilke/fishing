@@ -29,6 +29,22 @@ import { AppStore } from '../state/app.store';
           <span class="trend">{{ arrow() }} {{ deltaText() }}</span>
         </div>
 
+        <div class="methods" role="group" aria-label="Способ ловли">
+          @for (m of store.methods; track m.id) {
+            <button
+              type="button"
+              class="method-btn"
+              [class.on]="store.method() === m.id"
+              [attr.aria-pressed]="store.method() === m.id"
+              [title]="m.label"
+              (click)="store.setMethod(m.id)"
+            >
+              <i class="ti {{ m.icon }}" aria-hidden="true"></i>
+              <span>{{ m.short }}</span>
+            </button>
+          }
+        </div>
+
         <div class="bite">
           <div class="badge"><i class="ti ti-fish" aria-hidden="true"></i></div>
           <div>
@@ -38,6 +54,17 @@ import { AppStore } from '../state/app.store';
         </div>
 
         <p class="hint">{{ v()!.hint }}</p>
+
+        <ul class="factors">
+          @for (f of v()!.factors; track f.key) {
+            <li class="factor" [attr.data-level]="f.level">
+              <i class="ti {{ f.icon }}" aria-hidden="true"></i>
+              <span class="f-label">{{ f.label }}</span>
+              <span class="f-detail">{{ f.detail }}</span>
+              <span class="f-bar"><span class="f-fill" [style.width.%]="f.score"></span></span>
+            </li>
+          }
+        </ul>
 
         <div class="foot">
           <span>обновлено {{ ago() }}</span>

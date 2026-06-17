@@ -1,7 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { DEFAULT_POINT } from '../core/config';
-import { computeTrends } from '../core/pressure.util';
-import { interpret } from '../core/forecast.util';
+import { DEFAULT_METHOD, DEFAULT_POINT, FishingMethod, METHODS } from '../core/config';
+import { computeTrends, forwardSeries } from '../core/pressure.util';
+import { evaluateBite } from '../core/bite.util';
 import { GeoService } from '../core/geo.service';
 import { WeatherService } from '../core/weather.service';
 import { SpotsService } from '../core/spots.service';
@@ -25,14 +25,38 @@ export class AppStore {
   readonly spots = signal<FishingSpot[]>([]);
   readonly spotsLoading = signal(false);
 
+  // способ ловли (влияет на прогноз)
+  readonly methods = METHODS;
+  readonly method = signal<FishingMethod>(this.read('method', DEFAULT_METHOD));
+  readonly methodProfile = computed(
+    () => METHODS.find((m) => m.id === this.method()) ?? METHODS[0],
+  );
+
   readonly trends = computed(() => {
     const w = this.weather();
     return w ? computeTrends(w.series.mmHg, w.series.time, w.nowIndex) : null;
   });
 
   readonly verdict = computed(() => {
+    const w = this.weather();
     const t = this.trends();
-    return t ? interpret(t) : null;
+    if (!w || !t) return null;
+    return evaluateBite({
+      trends: t,
+      tempC: w.current.tempC,
+      windMs: w.current.windMs,
+      cloud: w.current.cloud,
+      precip: w.current.precip,
+      nowMs: Date.parse(w.current.time),
+      sunriseMs: Date.parse(w.sun?.sunrise ?? ''),
+      sunsetMs: Date.parse(w.sun?.sunset ?? ''),
+    }, this.methodProfile());
+  });
+
+  // Прогноз давления на 48 ч вперёд (почасово)
+  readonly forecast = computed(() => {
+    const w = this.weather();
+    return w ? forwardSeries(w.series.mmHg, w.series.time, w.nowIndex) : null;
   });
 
   readonly isFavorite = computed(() => {
@@ -104,6 +128,11 @@ export class AppStore {
     } finally {
       this.spotsLoading.set(false);
     }
+  }
+
+  setMethod(id: FishingMethod): void {
+    this.method.set(id);
+    this.write('method', id);
   }
 
   toggleFavorite(): void {

@@ -22,10 +22,12 @@ export class WeatherService {
         latitude: point.lat,
         longitude: point.lon,
         hourly: 'surface_pressure',
-        current: 'surface_pressure,pressure_msl,temperature_2m,wind_speed_10m',
+        current:
+          'surface_pressure,pressure_msl,temperature_2m,wind_speed_10m,cloud_cover,precipitation',
+        daily: 'sunrise,sunset',
         wind_speed_unit: 'ms',
         past_days: 2,
-        forecast_days: 2,
+        forecast_days: 3,
         timezone: 'auto',
       },
     });
@@ -63,15 +65,29 @@ export class WeatherService {
         pressureMslMmHg: hpaToMmHg(j.current.pressure_msl),
         tempC: Math.round(j.current.temperature_2m),
         windMs: Math.round(j.current.wind_speed_10m),
+        cloud: Math.round(j.current.cloud_cover ?? 0),
+        precip: j.current.precipitation ?? 0,
       },
       series: { time: times, mmHg },
+      sun: this.sunForDay(j, nowTime),
       nowIndex,
+    };
+  }
+
+  /** Восход/закат для текущих суток (daily содержит и прошлые дни). */
+  private sunForDay(j: any, nowTime: string): { sunrise: string; sunset: string } {
+    const day = nowTime.slice(0, 10);
+    const dates: string[] = j.daily?.time ?? [];
+    const i = Math.max(0, dates.indexOf(day));
+    return {
+      sunrise: j.daily?.sunrise?.[i] ?? '',
+      sunset: j.daily?.sunset?.[i] ?? '',
     };
   }
 
   private cacheKey(p: GeoPoint): string {
     const hour = new Date().toISOString().slice(0, 13);
-    return `wx:${p.lat.toFixed(2)}:${p.lon.toFixed(2)}:${hour}`;
+    return `wx2:${p.lat.toFixed(2)}:${p.lon.toFixed(2)}:${hour}`;
   }
 
   private readCache(key: string): WeatherData | null {

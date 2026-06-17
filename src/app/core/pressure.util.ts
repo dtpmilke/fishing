@@ -1,5 +1,5 @@
 import { HPA_TO_MMHG } from './config';
-import { PressureTrends } from './types';
+import { ForecastPoint, PressureTrends } from './types';
 
 /** Гектопаскали → мм рт. ст., округление до 0.1 */
 export const hpaToMmHg = (hpa: number): number =>
@@ -31,4 +31,22 @@ export function computeTrends(
   const deltaFwd = r1(mmHg[fwdEnd] - now);
 
   return { now: r1(now), delta24, maxStep: r1(maxStep), deltaFwd, past, fwd };
+}
+
+/**
+ * Прогноз давления вперёд от текущего часа (по умолчанию 48 ч).
+ * Возвращает почасовые точки начиная с «сейчас».
+ */
+export function forwardSeries(
+  mmHg: number[],
+  times: string[],
+  nowIndex: number,
+  hours = 48,
+): ForecastPoint[] {
+  const end = Math.min(mmHg.length - 1, nowIndex + hours);
+  const out: ForecastPoint[] = [];
+  for (let i = nowIndex; i <= end; i++) {
+    out.push({ time: times[i], mmHg: mmHg[i] });
+  }
+  return out;
 }

@@ -12,6 +12,7 @@ import { ThemeToggleComponent } from './ui/theme-toggle.component';
 import { NotifyButtonComponent } from './ui/notify-button.component';
 import { VerdictCardComponent } from './ui/verdict-card.component';
 import { PressureChartComponent } from './ui/pressure-chart.component';
+import { PressureForecastComponent } from './ui/pressure-forecast.component';
 import { StatsRowComponent } from './ui/stats-row.component';
 import { ThemeService } from './core/theme.service';
 import { AppStore } from './state/app.store';
@@ -26,6 +27,7 @@ import { AppStore } from './state/app.store';
     NotifyButtonComponent,
     VerdictCardComponent,
     PressureChartComponent,
+    PressureForecastComponent,
     StatsRowComponent,
   ],
   templateUrl: './app.html',
