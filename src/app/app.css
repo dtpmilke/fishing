@@ -24,92 +24,74 @@
 .grow { flex: 1; min-width: 0; }
 .actions-row { display: flex; justify-content: flex-end; gap: 8px; }
 
-/* Кнопки инструментов карты (рыбные места) */
-.map-tools {
-  position: absolute;
-  right: max(14px, env(safe-area-inset-right));
-  top: 140px;
-  z-index: 550;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* ---- Bottom sheet ---- */
+/* ======================================================
+   Bottom sheet — мобильная версия (3 состояния: peek / half / full)
+   ====================================================== */
 .sheet {
-  --peek: 480px; /* начальное значение до первого рендера, JS перезапишет */
-  /* отступ сверху = высота топ-панели (~120px) + safe-area-inset-top */
-  --top-gap: max(120px, calc(env(safe-area-inset-top) + 106px));
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 560;
+  /* высота = весь экран, но sheet позиционируется от bottom и сдвигается через transform */
+  height: 100dvh;
+  z-index: 700; /* в full перекрывает всё, включая поиск */
   margin: 0 auto;
   max-width: 520px;
-  /* ограничиваем высоту чтобы не залезать под поиск */
-  max-height: calc(100dvh - var(--top-gap));
   background: var(--glass-bg);
   -webkit-backdrop-filter: var(--blur);
   backdrop-filter: var(--blur);
   border: 1px solid var(--glass-border);
   border-bottom: none;
   border-radius: 24px 24px 0 0;
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.18);
-  padding: 0 max(14px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
+  padding: 0 max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
   transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
   will-change: transform;
   touch-action: none;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 .sheet.dragging { transition: none; }
+.sheet.full {
+  border-radius: 0;
+  border: none;
+  padding-top: env(safe-area-inset-top);
+}
 
-.handle {
+/* Ручка для перетаскивания */
+.handle-row {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 30px;
-  border: none;
-  background: transparent;
+  min-height: 36px;
   cursor: grab;
   touch-action: none;
+  flex-shrink: 0;
 }
-.handle:active { cursor: grabbing; }
+.handle-row:active { cursor: grabbing; }
+
 .grip {
-  width: 40px;
+  width: 36px;
   height: 5px;
   border-radius: 3px;
   background: var(--on-glass-dim);
-  opacity: 0.5;
+  opacity: 0.35;
 }
 
+/* Скроллящийся контент */
 .sheet-scroll {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  /* высота = max-height шторки минус ручка (30px) минус нижний padding */
-  max-height: calc(100dvh - var(--top-gap) - 30px - max(16px, env(safe-area-inset-bottom)));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
 }
-
-/* fade-out снизу — плавное исчезновение контента поверх скролла */
-.sheet::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 64px;
-  background: linear-gradient(to bottom, var(--sheet-fade), var(--sheet-fade-end));
-  pointer-events: none;
-  z-index: 1;
-  border-radius: 0 0 0 0;
-}
-
-/* «плоские» карточки внутри sheet вынесены в глобальный styles.css
-   (scoped-стили app.css не достают до дочерних компонентов из-за view-encapsulation) */
 
 .disclaimer {
   font-size: 11px;
@@ -118,30 +100,49 @@
   margin: 6px 0 0;
 }
 
-/* ---- Десктоп: боковая панель, без поведения шторки ---- */
+/* ======================================================
+   Десктоп: сайдбар слева на всю высоту
+   ====================================================== */
 @media (min-width: 900px) {
   .top { padding: 20px; flex-direction: row; align-items: flex-start; }
   .actions-row { flex-direction: column; }
-  .map-tools { right: 20px; }
   .sheet {
-    left: 20px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
     right: auto;
-    bottom: 20px;
-    top: 88px;
-    width: 380px;
-    max-width: 380px;
-    background: transparent;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    border: none;
-    box-shadow: none;
+    width: 400px;
+    max-width: 400px;
+    height: 100%;
     border-radius: 0;
-    padding: 0;
+    border: none;
+    border-right: 1px solid var(--glass-border);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: var(--blur);
+    backdrop-filter: var(--blur);
+    padding: 0 16px;
     transform: none !important;
     transition: none;
     overflow: visible;
+    margin: 0;
   }
-  .sheet .handle { display: none; }
-  .sheet-scroll { max-height: calc(100dvh - 120px); overflow-y: auto; padding-right: 4px; }
-  /* стеклянность карточек на десктопе восстанавливается в глобальном styles.css */
+
+  .handle-row { display: none; }
+
+  .sheet-scroll {
+    max-height: 100%;
+    overflow-y: auto;
+    padding-top: max(20px, env(safe-area-inset-top));
+    padding-bottom: 24px;
+    padding-right: 4px;
+  }
+
+  /* На десктопе поиск и кнопки сдвигаем вправо от сайдбара */
+  .top {
+    left: 400px;
+    padding: 20px;
+  }
+
 }

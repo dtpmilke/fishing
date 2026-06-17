@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom, timeout } from 'rxjs';
 import { API, CACHE_TTL_MS } from './config';
 import { hpaToMmHg } from './pressure.util';
-import { GeoPoint, WeatherData } from './types';
+import { DailySun, GeoPoint, WeatherData } from './types';
 
 @Injectable({ providedIn: 'root' })
 export class WeatherService {
@@ -34,7 +34,7 @@ export class WeatherService {
       fromObject: {
         latitude: point.lat,
         longitude: point.lon,
-        hourly: 'surface_pressure',
+        hourly: 'surface_pressure,temperature_2m,wind_speed_10m,cloud_cover,precipitation',
         current:
           'surface_pressure,pressure_msl,temperature_2m,wind_speed_10m,cloud_cover,precipitation',
         daily: 'sunrise,sunset',
@@ -63,6 +63,10 @@ export class WeatherService {
   private parseOpenMeteo(point: GeoPoint, j: any): WeatherData {
     const times: string[] = j.hourly.time;
     const mmHg: number[] = (j.hourly.surface_pressure as number[]).map(hpaToMmHg);
+    const tempC: number[] = (j.hourly.temperature_2m as number[]).map((v: number) => Math.round(v));
+    const windMs: number[] = (j.hourly.wind_speed_10m as number[]).map((v: number) => Math.round(v));
+    const cloud: number[] = (j.hourly.cloud_cover as number[]).map((v: number) => Math.round(v));
+    const precip: number[] = j.hourly.precipitation as number[];
     const nowTime: string = j.current.time;
 
     let nowIndex = times.indexOf(nowTime);
@@ -78,6 +82,14 @@ export class WeatherService {
       );
     }
 
+    // daily sunrise/sunset массивом
+    const dailyDates: string[] = j.daily?.time ?? [];
+    const daily: DailySun[] = dailyDates.map((d: string, i: number) => ({
+      date: d,
+      sunrise: j.daily?.sunrise?.[i] ?? '',
+      sunset: j.daily?.sunset?.[i] ?? '',
+    }));
+
     return {
       point,
       fetchedAt: Date.now(),
@@ -90,7 +102,8 @@ export class WeatherService {
         cloud: Math.round(j.current.cloud_cover ?? 0),
         precip: j.current.precipitation ?? 0,
       },
-      series: { time: times, mmHg },
+      series: { time: times, mmHg, tempC, windMs, cloud, precip },
+      daily,
       sun: this.sunForDayOpenMeteo(j, nowTime),
       nowIndex,
     };
@@ -109,6 +122,10 @@ export class WeatherService {
     // Собираем почасовой ряд из 3-часовых точек wttr
     const times: string[] = [];
     const mmHg: number[] = [];
+    const tempC: number[] = [];
+    const windMs: number[] = [];
+    const cloud: number[] = [];
+    const precip: number[] = [];
 
     for (const day of (j.weather ?? []) as any[]) {
       const dateStr: string = day.date; // "YYYY-MM-DD"
@@ -118,6 +135,10 @@ export class WeatherService {
         const mm = hourMin.slice(-2);
         times.push(`${dateStr}T${hh}:${mm}`);
         mmHg.push(hpaToMmHg(Number(h.pressure)));
+        tempC.push(Math.round(Number(h.tempC ?? 0)));
+        windMs.push(Math.round(Number(h.windspeedKmph ?? 0) / 3.6));
+        cloud.push(Math.round(Number(h.cloudcover ?? 0)));
+        precip.push(Number(h.precipMM ?? 0));
       }
     }
 
@@ -131,15 +152,21 @@ export class WeatherService {
     }
 
     // Восход/закат из astronomy (wttr возвращает "03:45 AM")
-    const astro = j.weather?.[0]?.astronomy?.[0];
-    const todayDate = j.weather?.[0]?.date ?? now.toISOString().slice(0, 10);
-    const sunrise = astro?.sunrise ? this.parseWttrTime(todayDate, astro.sunrise) : '';
-    const sunset  = astro?.sunset  ? this.parseWttrTime(todayDate, astro.sunset)  : '';
+    const daily: DailySun[] = ((j.weather ?? []) as any[]).map((day: any) => {
+      const astro = day.astronomy?.[0];
+      const d = day.date ?? now.toISOString().slice(0, 10);
+      return {
+        date: d,
+        sunrise: astro?.sunrise ? this.parseWttrTime(d, astro.sunrise) : '',
+        sunset: astro?.sunset ? this.parseWttrTime(d, astro.sunset) : '',
+      };
+    });
+    const todaySun = daily[0] ?? { date: '', sunrise: '', sunset: '' };
 
     // Давление: wttr даёт pressure в мбар (= гПа)
     const pressureMmHg = hpaToMmHg(Number(cur?.pressure ?? 0));
     // Ветер: wttr в км/ч → м/с
-    const windMs = Math.round(Number(cur?.windspeedKmph ?? 0) / 3.6);
+    const curWindMs = Math.round(Number(cur?.windspeedKmph ?? 0) / 3.6);
 
     return {
       point,
@@ -149,12 +176,13 @@ export class WeatherService {
         pressureMmHg,
         pressureMslMmHg: pressureMmHg,
         tempC: Math.round(Number(cur?.temp_C ?? 0)),
-        windMs,
+        windMs: curWindMs,
         cloud: Math.round(Number(cur?.cloudcover ?? 0)),
         precip: Number(cur?.precipMM ?? 0),
       },
-      series: { time: times, mmHg },
-      sun: { sunrise, sunset },
+      series: { time: times, mmHg, tempC, windMs, cloud, precip },
+      daily,
+      sun: { sunrise: todaySun.sunrise, sunset: todaySun.sunset },
       nowIndex,
     };
   }
@@ -189,7 +217,7 @@ export class WeatherService {
 
   private cacheKey(p: GeoPoint): string {
     const hour = new Date().toISOString().slice(0, 13);
-    return `wx2:${p.lat.toFixed(2)}:${p.lon.toFixed(2)}:${hour}`;
+    return `wx3:${p.lat.toFixed(2)}:${p.lon.toFixed(2)}:${hour}`;
   }
 
   private readCache(key: string): WeatherData | null {

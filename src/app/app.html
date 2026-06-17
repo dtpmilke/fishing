@@ -7,40 +7,29 @@
   </div>
   <div class="actions-row">
     <app-notify-button />
+    <button type="button" class="round-btn glass" [class.on]="store.spots().length" (click)="store.findSpots()"
+            [title]="store.spotsLoading() ? 'Ищу…' : 'Рыбные места рядом'" aria-label="Рыбные места рядом">
+      <i class="ti" [class.ti-fish]="!store.spotsLoading()" [class.ti-loader-2]="store.spotsLoading()"
+         [class.spin]="store.spotsLoading()" aria-hidden="true"></i>
+    </button>
     <app-theme-toggle />
   </div>
 </header>
 
-<div class="map-tools">
-  <button type="button" class="round-btn glass" [class.on]="store.spots().length" (click)="store.findSpots()"
-          [title]="store.spotsLoading() ? 'Ищу…' : 'Рыбные места рядом'" aria-label="Рыбные места рядом">
-    <i class="ti" [class.ti-fish]="!store.spotsLoading()" [class.ti-loader-2]="store.spotsLoading()"
-       [class.spin]="store.spotsLoading()" aria-hidden="true"></i>
-  </button>
-</div>
-
 <section
   class="sheet"
-  [class.open]="sheetOpen()"
   [class.dragging]="dragging()"
+  [class.full]="sheetState() === 'full'"
   [style.transform]="sheetStyle()"
 >
-  <button
-    type="button"
-    class="handle"
-    (pointerdown)="onDown($event)"
-    (pointermove)="onMove($event)"
-    (pointerup)="onUp()"
-    (pointercancel)="onUp()"
-    aria-label="Свернуть или развернуть панель"
-  >
+  <div class="handle-row" (pointerdown)="onDown($event)">
     <span class="grip"></span>
-  </button>
+  </div>
 
   <div class="sheet-scroll">
+    <app-day-tabs />
     <app-verdict-card />
-    <app-pressure-chart />
-    <app-pressure-forecast />
+    <app-pressure-tabs />
     <app-stats-row />
     <p class="disclaimer">Прогноз ориентировочный — основан на динамике давления.</p>
   </div>

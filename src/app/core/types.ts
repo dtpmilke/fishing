@@ -19,12 +19,28 @@ export interface SunTimes {
   sunset: string;  // локальное ISO время заката (сегодня)
 }
 
+export interface HourlySeries {
+  time: string[];
+  mmHg: number[];       // surface_pressure → мм рт. ст.
+  tempC: number[];      // temperature_2m
+  windMs: number[];     // wind_speed_10m
+  cloud: number[];      // cloud_cover, %
+  precip: number[];     // precipitation, мм/ч
+}
+
+export interface DailySun {
+  date: string;    // "YYYY-MM-DD"
+  sunrise: string; // ISO
+  sunset: string;  // ISO
+}
+
 export interface WeatherData {
   point: GeoPoint;
   fetchedAt: number;
   current: CurrentWeather;
-  series: { time: string[]; mmHg: number[] }; // surface_pressure, почасово
-  sun: SunTimes;
+  series: HourlySeries;   // почасовые серии на 3 дня
+  daily: DailySun[];      // восход/закат по дням
+  sun: SunTimes;          // восход/закат текущего дня (для совместимости)
   nowIndex: number;
 }
 

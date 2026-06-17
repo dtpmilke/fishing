@@ -7,7 +7,9 @@ import { GeoService } from '../core/geo.service';
 import { WeatherService } from '../core/weather.service';
 import { SpotsService } from '../core/spots.service';
 import { ToastService } from '../core/toast.service';
-import { FishingSpot, GeoPoint, WeatherData } from '../core/types';
+import { DailySun, FishingSpot, GeoPoint, WeatherData } from '../core/types';
+
+export type DayOffset = 0 | 1 | 2; // Сегодня / Завтра / Послезавтра
 
 type Status = 'idle' | 'loading' | 'error';
 
@@ -35,24 +37,98 @@ export class AppStore {
     () => METHODS.find((m) => m.id === this.method()) ?? METHODS[0],
   );
 
+  // выбранный день: 0 = сегодня, 1 = завтра, 2 = послезавтра
+  readonly selectedDay = signal<DayOffset>(0);
+
+  /** Дата выбранного дня как "YYYY-MM-DD" */
+  readonly selectedDate = computed(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + this.selectedDay());
+    return d.toISOString().slice(0, 10);
+  });
+
+  /** Средние значения погоды для выбранного дня (из hourly серий) */
+  readonly dayWeather = computed(() => {
+    const w = this.weather();
+    if (!w) return null;
+    const date = this.selectedDate();
+    // Индексы часов выбранного дня
+    const indices: number[] = [];
+    for (let i = 0; i < w.series.time.length; i++) {
+      if (w.series.time[i].startsWith(date)) indices.push(i);
+    }
+    if (!indices.length) return null;
+
+    const avg = (arr: number[]) => Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+    const mmHgArr = indices.map(i => w.series.mmHg[i]);
+    const tempArr = indices.map(i => w.series.tempC[i]);
+    const windArr = indices.map(i => w.series.windMs[i]);
+    const cloudArr = indices.map(i => w.series.cloud[i]);
+    const precipArr = indices.map(i => w.series.precip[i]);
+
+    return {
+      pressureMmHg: avg(mmHgArr),
+      tempC: avg(tempArr),
+      windMs: avg(windArr),
+      cloud: avg(cloudArr),
+      precip: Math.round(precipArr.reduce((a, b) => a + b, 0) / precipArr.length * 10) / 10,
+      minTemp: Math.min(...tempArr),
+      maxTemp: Math.max(...tempArr),
+      minPressure: Math.min(...mmHgArr),
+      maxPressure: Math.max(...mmHgArr),
+    };
+  });
+
+  /** Sunrise/sunset для выбранного дня */
+  readonly daySun = computed((): DailySun | null => {
+    const w = this.weather();
+    if (!w) return null;
+    const date = this.selectedDate();
+    return w.daily?.find(d => d.date === date) ?? null;
+  });
+
   readonly trends = computed(() => {
     const w = this.weather();
-    return w ? computeTrends(w.series.mmHg, w.series.time, w.nowIndex) : null;
+    if (!w) return null;
+    // Для выбранного дня: если сегодня — nowIndex, иначе — середина дня
+    const day = this.selectedDay();
+    if (day === 0) return computeTrends(w.series.mmHg, w.series.time, w.nowIndex);
+    // Для будущих дней берём центральный час дня (полдень)
+    const date = this.selectedDate();
+    const noonIdx = w.series.time.findIndex(t => t.startsWith(date) && t.includes('T12'));
+    const idx = noonIdx >= 0 ? noonIdx : w.series.time.findIndex(t => t.startsWith(date));
+    return idx >= 0 ? computeTrends(w.series.mmHg, w.series.time, idx) : null;
   });
 
   readonly verdict = computed(() => {
     const w = this.weather();
     const t = this.trends();
     if (!w || !t) return null;
+
+    const day = this.selectedDay();
+    const sun = this.daySun();
+
+    // Для сегодня — реальные текущие данные, для будущих — средние за день
+    const dw = this.dayWeather();
+    const tempC = day === 0 ? w.current.tempC : (dw?.tempC ?? w.current.tempC);
+    const windMs = day === 0 ? w.current.windMs : (dw?.windMs ?? w.current.windMs);
+    const cloud = day === 0 ? w.current.cloud : (dw?.cloud ?? w.current.cloud);
+    const precip = day === 0 ? w.current.precip : (dw?.precip ?? w.current.precip);
+
+    // Время: для сегодня — текущее, для будущих — полдень (чтобы факторы считались как "день")
+    const nowMs = day === 0
+      ? Date.parse(w.current.time)
+      : Date.parse(`${this.selectedDate()}T12:00`);
+
     return evaluateBite({
       trends: t,
-      tempC: w.current.tempC,
-      windMs: w.current.windMs,
-      cloud: w.current.cloud,
-      precip: w.current.precip,
-      nowMs: Date.parse(w.current.time),
-      sunriseMs: Date.parse(w.sun?.sunrise ?? ''),
-      sunsetMs: Date.parse(w.sun?.sunset ?? ''),
+      tempC,
+      windMs,
+      cloud,
+      precip,
+      nowMs,
+      sunriseMs: Date.parse(sun?.sunrise ?? w.sun?.sunrise ?? ''),
+      sunsetMs: Date.parse(sun?.sunset ?? w.sun?.sunset ?? ''),
     }, this.methodProfile());
   });
 
@@ -153,6 +229,10 @@ export class AppStore {
     } finally {
       this.spotsLoading.set(false);
     }
+  }
+
+  setDay(day: DayOffset): void {
+    this.selectedDay.set(day);
   }
 
   setMethod(id: FishingMethod): void {

@@ -23,8 +23,6 @@
   --on-glass-dim: rgba(13, 34, 48, 0.62);
   /* мягкая голубоватая тень — на светлой карте не выглядит грязной */
   --shadow: 0 6px 20px rgba(13, 34, 48, 0.10);
-  --sheet-fade: rgba(235, 243, 250, 0);
-  --sheet-fade-end: rgba(235, 243, 250, 0.96);
 }
 
 :root[data-theme='dark'] {
@@ -37,8 +35,6 @@
   --on-glass: #eaf3fa;
   --on-glass-dim: rgba(234, 243, 250, 0.66);
   --shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
-  --sheet-fade: rgba(12, 26, 38, 0);
-  --sheet-fade-end: rgba(12, 26, 38, 0.96);
 }
 
 * { box-sizing: border-box; }
@@ -252,6 +248,98 @@ button { font-family: inherit; cursor: pointer; }
 .fc-dot { fill: var(--good); }
 .fc-day { position: absolute; bottom: 0; transform: translateX(-50%); font-size: 10.5px; color: var(--on-glass-dim); white-space: nowrap; pointer-events: none; }
 
+/* ============ Табы выбора дня — iOS segmented control ============ */
+.day-tabs {
+  display: flex;
+  padding: 2px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(128, 128, 128, 0.12);
+  border-radius: 9px;
+  margin-bottom: 4px;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.day-tab {
+  flex: 1;
+  padding: 7px 4px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--on-glass-dim);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+.day-tab:active { transform: scale(0.95); }
+.day-tab.active {
+  color: var(--on-glass);
+  background: var(--glass-bg);
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.12),
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+  transform: none;
+}
+
+/* ============ Табы давления по дням ============ */
+.ptabs { padding: 16px 20px; }
+.ptabs-head {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.ptab-btn {
+  flex: 1;
+  padding: 7px 4px;
+  font-size: 13px;
+  border: 1px solid rgba(127, 127, 127, 0.25);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--on-glass-dim);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.ptab-btn.active {
+  color: var(--on-glass);
+  border-color: var(--on-glass-dim);
+  background: rgba(128, 128, 128, 0.14);
+  font-weight: 500;
+}
+.ptab-range {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.ptab-mm { font-size: 24px; font-weight: 600; }
+.ptab-unit { font-size: 13px; color: var(--on-glass-dim); }
+.ptab-trend { margin-left: auto; font-size: 14px; font-weight: 500; color: var(--on-glass-dim); }
+.ptab-trend.rising { color: var(--bad); }
+.ptab-trend.falling { color: var(--mid); }
+.ptab-rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+  gap: 8px;
+}
+.ptab-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  background: rgba(128, 128, 128, 0.1);
+}
+.ptab-hour { font-size: 11px; color: var(--on-glass-dim); }
+.ptab-val { font-size: 15px; font-weight: 600; }
+
 /* ============ Плитки ============ */
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 14px 8px; }
@@ -352,47 +440,34 @@ button { font-family: inherit; cursor: pointer; }
   filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.95);
 }
 
-/* ============ Bottom sheet: плоские карточки внутри (глобально, чтобы достать до дочерних компонентов) ============ */
+/* ============ Карточки внутри sheet/sidebar — плоские, фон уже от контейнера ============ */
 .sheet .verdict,
-.sheet .chart {
-  background: transparent;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  border: none;
-  box-shadow: none;
+.sheet .verdict.glass,
+.sheet .chart,
+.sheet .chart.glass,
+.sheet .ptabs,
+.sheet .ptabs.glass {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
   border-radius: 0;
-  padding: 6px;
+  padding: 6px 0;
 }
+.sheet .verdict { padding: 14px 4px; border-bottom: 1px solid rgba(128, 128, 128, 0.15) !important; }
+.sheet .ptabs { padding: 12px 4px; border-bottom: 1px solid rgba(128, 128, 128, 0.15) !important; }
 .sheet .verdict::before { display: none; }
 .sheet .tile {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   box-shadow: none;
   border: none;
-  background: rgba(128, 128, 128, 0.12);
+  background: rgba(128, 128, 128, 0.1);
 }
-
 @media (min-width: 900px) {
-  /* на десктопе карточки снова стеклянные */
-  .sheet .verdict,
-  .sheet .chart {
-    background: var(--glass-bg);
-    -webkit-backdrop-filter: var(--blur);
-    backdrop-filter: var(--blur);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--shadow), inset 0 1px 1px rgba(255, 255, 255, 0.4);
-    border-radius: var(--r);
-  }
-  .sheet .verdict { padding: 18px 20px; }
-  .sheet .verdict::before { display: block; }
-  .sheet .chart { padding: 14px 16px 10px; }
-  .sheet .tile {
-    background: var(--glass-bg);
-    -webkit-backdrop-filter: var(--blur);
-    backdrop-filter: var(--blur);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--shadow), inset 0 1px 1px rgba(255, 255, 255, 0.4);
-  }
+  .sheet .verdict { padding: 18px 4px; }
+  .sheet .ptabs { padding: 16px 4px; }
 }
 
 /* ============ Анимации ============ */
@@ -400,8 +475,9 @@ button { font-family: inherit; cursor: pointer; }
 @keyframes breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
-.verdict, .chart, .stats { animation: fadeUp 0.4s ease both; }
+.verdict, .chart, .ptabs, .stats { animation: fadeUp 0.4s ease both; }
 .chart { animation-delay: 0.05s; }
+.ptabs { animation-delay: 0.05s; }
 .stats { animation-delay: 0.1s; }
 
 @media (prefers-reduced-motion: reduce) {
