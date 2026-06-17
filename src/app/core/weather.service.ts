@@ -46,7 +46,7 @@ export class WeatherService {
     });
 
     const raw = await firstValueFrom(
-      this.http.get<any>(API.forecast, { params }).pipe(timeout(12000)),
+      this.http.get<any>(API.forecast, { params }).pipe(timeout(5000)),
     );
     return this.parseOpenMeteo(point, raw);
   }
@@ -55,7 +55,7 @@ export class WeatherService {
   private async loadWttr(point: GeoPoint): Promise<WeatherData> {
     const url = `${API.wttr}/${point.lat},${point.lon}?format=j1`;
     const raw = await firstValueFrom(
-      this.http.get<any>(url).pipe(timeout(12000)),
+      this.http.get<any>(url).pipe(timeout(12000)), // wttr.in может быть медленным
     );
     return this.parseWttr(point, raw);
   }
