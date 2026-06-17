@@ -1,10 +1,12 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { DEFAULT_METHOD, DEFAULT_POINT, FishingMethod, METHODS } from '../core/config';
 import { computeTrends, forwardSeries } from '../core/pressure.util';
 import { evaluateBite } from '../core/bite.util';
 import { GeoService } from '../core/geo.service';
 import { WeatherService } from '../core/weather.service';
 import { SpotsService } from '../core/spots.service';
+import { ToastService } from '../core/toast.service';
 import { FishingSpot, GeoPoint, WeatherData } from '../core/types';
 
 type Status = 'idle' | 'loading' | 'error';
@@ -14,6 +16,7 @@ export class AppStore {
   private weatherApi = inject(WeatherService);
   private geo = inject(GeoService);
   private spotsApi = inject(SpotsService);
+  private toast = inject(ToastService);
 
   readonly point = signal<GeoPoint>(DEFAULT_POINT);
   readonly placeName = signal<string>(DEFAULT_POINT.name ?? '');
@@ -70,14 +73,20 @@ export class AppStore {
     if (last) return this.select(last, false);
 
     const ip = await this.geo.getByIP();
+    if (!ip) this.toast.warn('Не удалось определить город по IP — используем Москву');
     return this.select(ip ?? DEFAULT_POINT, !!ip);
   }
 
   async useGPS(): Promise<void> {
     try {
       await this.select(await this.geo.getByGPS(), true);
-    } catch {
-      /* пользователь не дал разрешение — остаёмся на текущей точке */
+    } catch (e: any) {
+      const msg = e?.code === 1
+        ? 'Нет доступа к геолокации — разрешите в настройках браузера'
+        : e?.code === 3
+          ? 'Геолокация не ответила вовремя'
+          : 'Не удалось получить координаты GPS';
+      this.toast.warn(msg);
     }
   }
 
@@ -98,8 +107,15 @@ export class AppStore {
       if (name) this.placeName.set(name);
       this.status.set('idle');
       this.write('lastPoint', { ...p, name: this.placeName() });
-    } catch {
+    } catch (e: any) {
       this.status.set('error');
+      // HttpErrorResponse уже показан interceptor'ом — не дублируем
+      if (!(e instanceof HttpErrorResponse)) {
+        const isTimeout = e?.name === 'TimeoutError';
+        this.toast.error(isTimeout
+          ? 'Сервер погоды не ответил — проверьте соединение'
+          : 'Не удалось загрузить погоду');
+      }
     }
   }
 
@@ -108,8 +124,12 @@ export class AppStore {
     try {
       this.weather.set(await this.weatherApi.load(this.point(), true));
       this.status.set('idle');
-    } catch {
+    } catch (e: any) {
       this.status.set('error');
+      if (!(e instanceof HttpErrorResponse)) {
+        const isTimeout = e?.name === 'TimeoutError';
+        this.toast.error(isTimeout ? 'Сервер погоды не ответил' : 'Ошибка обновления погоды');
+      }
     }
   }
 
@@ -123,8 +143,13 @@ export class AppStore {
     try {
       const p = this.point();
       this.spots.set(await this.spotsApi.findNear(p.lat, p.lon));
-    } catch {
+      if (!this.spots().length) this.toast.warn('Рыбные места рядом не найдены');
+    } catch (e) {
       this.spots.set([]);
+      // HttpErrorResponse уже показан interceptor'ом
+      if (!(e instanceof HttpErrorResponse)) {
+        this.toast.error('Не удалось загрузить рыбные места');
+      }
     } finally {
       this.spotsLoading.set(false);
     }

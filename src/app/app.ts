@@ -14,6 +14,7 @@ import { VerdictCardComponent } from './ui/verdict-card.component';
 import { PressureChartComponent } from './ui/pressure-chart.component';
 import { PressureForecastComponent } from './ui/pressure-forecast.component';
 import { StatsRowComponent } from './ui/stats-row.component';
+import { ToastComponent } from './ui/toast.component';
 import { ThemeService } from './core/theme.service';
 import { AppStore } from './state/app.store';
 
@@ -29,6 +30,7 @@ import { AppStore } from './state/app.store';
     PressureChartComponent,
     PressureForecastComponent,
     StatsRowComponent,
+    ToastComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.css',
