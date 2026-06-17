@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 import { API } from './config';
 import { GeoPoint } from './types';
 
@@ -27,14 +27,18 @@ export class GeoService {
   /** Приблизительное местоположение по IP — без разрешения. */
   async getByIP(): Promise<GeoPoint | null> {
     try {
-      const j = await firstValueFrom(this.http.get<any>(API.ipGeojs));
+      const j = await firstValueFrom(
+        this.http.get<any>(API.ipGeojs).pipe(timeout(4000)),
+      );
       if (j.latitude && j.longitude)
         return { lat: +j.latitude, lon: +j.longitude, name: j.city };
     } catch {
       /* пробуем запасной */
     }
     try {
-      const j = await firstValueFrom(this.http.get<any>(API.ipWhois));
+      const j = await firstValueFrom(
+        this.http.get<any>(API.ipWhois).pipe(timeout(4000)),
+      );
       if (j.latitude && j.longitude)
         return { lat: j.latitude, lon: j.longitude, name: j.city };
     } catch {
@@ -49,7 +53,9 @@ export class GeoService {
     const params = new HttpParams({
       fromObject: { name, count: 6, language: 'ru', format: 'json' },
     });
-    const j = await firstValueFrom(this.http.get<any>(API.geocode, { params }));
+    const j = await firstValueFrom(
+      this.http.get<any>(API.geocode, { params }).pipe(timeout(8000)),
+    );
     return ((j.results ?? []) as any[]).map((x) => ({
       lat: x.latitude,
       lon: x.longitude,
@@ -64,7 +70,9 @@ export class GeoService {
       const params = new HttpParams({
         fromObject: { latitude: lat, longitude: lon, localityLanguage: 'ru' },
       });
-      const j = await firstValueFrom(this.http.get<any>(API.reverse, { params }));
+      const j = await firstValueFrom(
+        this.http.get<any>(API.reverse, { params }).pipe(timeout(6000)),
+      );
       return j.locality || j.city || j.principalSubdivision || fallback;
     } catch {
       return fallback;

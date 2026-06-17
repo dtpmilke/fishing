@@ -30,9 +30,6 @@ import { FishingSpot } from '../core/types';
         position: absolute;
         inset: 0;
         z-index: 0;
-        height: 100%;
-        height: 100dvh;
-        width: 100%;
       }
       /* iOS fix: force hardware acceleration */
       @supports (-webkit-touch-callout: none) {
@@ -111,6 +108,10 @@ export class MapComponent implements AfterViewInit {
     );
 
     this.setMarker(p.lat, p.lon, false);
+
+    // После первого рендера браузер пересчитывает layout (особенно на iOS),
+    // поэтому принудительно обновляем размер карты в следующем кадре.
+    requestAnimationFrame(() => this.map.invalidateSize());
 
     this.map.on('click', (e: L.LeafletMouseEvent) => {
       this.store.select({

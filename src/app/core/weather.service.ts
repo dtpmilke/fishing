@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 import { API, CACHE_TTL_MS } from './config';
 import { hpaToMmHg } from './pressure.util';
 import { GeoPoint, WeatherData } from './types';
@@ -32,7 +32,9 @@ export class WeatherService {
       },
     });
 
-    const raw = await firstValueFrom(this.http.get<any>(API.forecast, { params }));
+    const raw = await firstValueFrom(
+      this.http.get<any>(API.forecast, { params }).pipe(timeout(12000)),
+    );
     const data = this.parse(point, raw);
     this.writeCache(key, data);
     return data;
