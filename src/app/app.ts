@@ -79,7 +79,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Вычисляет --peek как расстояние от верха шторки до нижнего края .foot + 24px запас.
+   * Вычисляет --peek как расстояние от верха шторки до нижнего края .foot + запас для fade.
    * Работает независимо от размера экрана и длины текста.
    */
   private updatePeek(): void {
@@ -87,13 +87,18 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     const foot = this.el.nativeElement.querySelector('.foot') as HTMLElement | null;
     if (!sheet || !foot) return;
 
-    const sheetRect = sheet.getBoundingClientRect();
-    const footRect = foot.getBoundingClientRect();
+    // Используем offsetTop/offsetHeight — они не зависят от transform/translateY
+    // и дают позицию внутри шторки в её собственной системе координат
+    let offsetTop = 0;
+    let el: HTMLElement | null = foot;
+    while (el && el !== sheet) {
+      offsetTop += el.offsetTop;
+      el = el.offsetParent as HTMLElement | null;
+    }
+    const footBottomInSheet = offsetTop + foot.offsetHeight;
 
-    // Расстояние от низа .foot до низа шторки (в системе координат шторки)
-    const footOffsetFromSheetBottom = sheetRect.bottom - footRect.bottom;
-    // peek = высота шторки минус (расстояние от foot.bottom до sheet.bottom) + запас для fade
-    const peek = sheetRect.height - footOffsetFromSheetBottom + 24;
+    // peek = расстояние от верха шторки до низа .foot + запас для fade
+    const peek = footBottomInSheet + 24;
 
     sheet.style.setProperty('--peek', `${Math.round(peek)}px`);
   }
